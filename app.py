@@ -54,26 +54,42 @@ uploaded_file = st.file_uploader(
 
 # Fungsi pembantu untuk memproses dan memprediksi satu gambar PIL
 def predict_image(img, file_name):
+    # 1. Resize gambar sesuai kebutuhan model
     img_resized = img.resize((IMG_WIDTH, IMG_HEIGHT))
+    
+    # 2. Ubah ke array dan PAKSA tipe datanya menjadi float32 sebelum dibagi 255.0
     img_array = image.img_to_array(img_resized)
+    img_array = np.array(img_array, dtype=np.float32) / 255.0
     
-    # --- TAMBAHKAN BARIS INI UNTUK NORMALISASI ---
-    img_array = img_array / 255.0 
-    # ---------------------------------------------
-    
+    # 3. Tambahkan dimensi batch (1, 150, 150, 3)
     img_array = np.expand_dims(img_array, axis=0)
 
+    # 4. Lakukan prediksi
     prediction = model.predict(img_array, verbose=0)
 
+    # 5. LOGIKA PENENTUAN KELAS (Disederhanakan & Diperketat)
+    # Jika output berbentuk tunggal/binary (contoh: [[0.74]]) -> Menggunakan Aktivasi Sigmoid
     if prediction.shape[-1] == 1:
         score = float(prediction[0][0])
-        predicted_class = CLASS_NAMES[0] if score >= 0.5 else CLASS_NAMES[1]
-        confidence = max(score, 1 - score) * 100
+        # Standar Sigmoid: mendekati 1 berarti kelas positif, mendekati 0 kelas negatif
+        if score >= 0.5:
+            predicted_class = "Tidak Retak"  # Jika salah, tukar posisi teks dengan bawahnya
+            confidence = score * 100
+        else:
+            predicted_class = "Retak"
+            confidence = (1 - score) * 100
+            
+    # Jika output berbentuk array berisi 2 nilai (contoh: [[0.23, 0.77]]) -> Menggunakan Aktivasi Softmax
     else:
-        score = tf.nn.softmax(prediction[0])
-        idx = np.argmax(score)
-        predicted_class = CLASS_NAMES[idx]
-        confidence = float(np.max(score)) * 100
+        # Gunakan softmax jika model belum mengeluarkan probabilitas murni
+        # (Beberapa model saat ditraining hanya mengeluarkan nilai 'logits' mentah)
+        probabilities = tf.nn.softmax(prediction[0]).numpy()
+        idx = np.argmax(probabilities)
+        
+        # Mapping manual berdasarkan indeks tertinggi agar tidak membingungkan
+        classes_map = {0: "Tidak Retak", 1: "Retak"}  # Jika terbalik, tinggal tukar teksnya di sini
+        predicted_class = classes_map.get(idx, "Tidak Diketahui")
+        confidence = float(probabilities[idx]) * 100
         
     return predicted_class, confidence
 
