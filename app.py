@@ -54,40 +54,41 @@ uploaded_file = st.file_uploader(
 
 # Fungsi pembantu untuk memproses dan memprediksi satu gambar PIL
 def predict_image(img, file_name):
-    # 1. Resize gambar sesuai kebutuhan model
+    # 1. Pastikan ukuran sesuai target model
     img_resized = img.resize((IMG_WIDTH, IMG_HEIGHT))
-    
-    # 2. Ubah ke array dan PAKSA tipe datanya menjadi float32 sebelum dibagi 255.0
     img_array = image.img_to_array(img_resized)
-    img_array = np.array(img_array, dtype=np.float32) / 255.0
     
-    # 3. Tambahkan dimensi batch (1, 150, 150, 3)
-    img_array = np.expand_dims(img_array, axis=0)
+    # 2. UJI COBA PREPROCESSING (Deteksi otomatis jika nilai stuck)
+    # Kita buat duplikat array untuk mencoba prediksi tanpa pembagian 255
+    img_array_raw = np.expand_dims(img_array, axis=0) # Skala 0-255
+    img_array_norm = np.expand_dims(img_array / 255.0, axis=0) # Skala 0-1
+    
+    # Coba prediksi menggunakan skala 0-1 dulu
+    prediction = model.predict(img_array_norm, verbose=0)
+    
+    # JIKA HASILNYA MASIH STUCK DI NILAI YANG SAMA (Contoh nilai mentahnya konstan)
+    # Kita beralih menggunakan data mentah (0-255) tanpa normalisasi
+    if np.allclose(prediction, prediction[0][0], atol=1e-4):
+        prediction = model.predict(img_array_raw, verbose=0)
 
-    # 4. Lakukan prediksi
-    prediction = model.predict(img_array, verbose=0)
-
-    # 5. LOGIKA PENENTUAN KELAS (Disederhanakan & Diperketat)
-    # Jika output berbentuk tunggal/binary (contoh: [[0.74]]) -> Menggunakan Aktivasi Sigmoid
+    # 3. LOGIKA PENENTUAN SKOR DAN PERSENTASE KELAS
     if prediction.shape[-1] == 1:
         score = float(prediction[0][0])
-        # Standar Sigmoid: mendekati 1 berarti kelas positif, mendekati 0 kelas negatif
+        
+        # Logika dinamis: Menghitung jarak dari threshold 0.5
         if score >= 0.5:
-            predicted_class = "Tidak Retak"  # Jika salah, tukar posisi teks dengan bawahnya
+            # Jika hasil ini terbalik pada tes Anda, tukar string "Retak" dan "Tidak Retak"
+            predicted_class = "Tidak Retak"
             confidence = score * 100
         else:
             predicted_class = "Retak"
             confidence = (1 - score) * 100
-            
-    # Jika output berbentuk array berisi 2 nilai (contoh: [[0.23, 0.77]]) -> Menggunakan Aktivasi Softmax
     else:
-        # Gunakan softmax jika model belum mengeluarkan probabilitas murni
-        # (Beberapa model saat ditraining hanya mengeluarkan nilai 'logits' mentah)
+        # Untuk model output Softmax (2 komponen output)
         probabilities = tf.nn.softmax(prediction[0]).numpy()
         idx = np.argmax(probabilities)
         
-        # Mapping manual berdasarkan indeks tertinggi agar tidak membingungkan
-        classes_map = {0: "Tidak Retak", 1: "Retak"}  # Jika terbalik, tinggal tukar teksnya di sini
+        classes_map = {0: "Tidak Retak", 1: "Retak"}
         predicted_class = classes_map.get(idx, "Tidak Diketahui")
         confidence = float(probabilities[idx]) * 100
         
