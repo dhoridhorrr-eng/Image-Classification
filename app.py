@@ -12,7 +12,7 @@ st.set_page_config(page_title="Klasifikasi Retak Beton")
 
 # --- KONFIGURASI GOOGLE DRIVE ---
 # Masukkan LINK BAGIKAN lengkap dari Google Drive Anda di sini
-GOOGLE_DRIVE_SHARE_LINK = "https://drive.google.com/file/d/16RT_dahvxqh0Vexxxxxxx/view?usp=sharing"
+GOOGLE_DRIVE_SHARE_LINK = "https://drive.google.com/file/d/16RT_dahvxqh0VeYFdWS-UTBlE2YK1g3C/view?usp=sharing"
 
 MODEL_PATH = "model_crack_beton.h5"
 IMG_HEIGHT = 150
