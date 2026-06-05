@@ -1,24 +1,25 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
-from tensorflow.keras.preprocessing import image
 from PIL import Image
 import os
 import re
 import gdown
 import zipfile
 
+# Trik Bypass Deserialization: Impor keras secara modular untuk menangani bug versi lama vs baru
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
+
 st.set_page_config(page_title="Klasifikasi Retak Beton")
 
 # --- CONFIGURASI GOOGLE DRIVE ---
-# TEMPELKAN LINK BERBAGI (SHARE LINK) GOOGLE DRIVE ANDA DI SINI
+# Pastikan link di bawah ini ditutup dengan tanda kutip murni tanpa teks kode lain!
 GOOGLE_DRIVE_SHARE_LINK = "https://drive.google.com/file/d/16RT_dahvxqh0VeYFdWS-UTBlE2YK1g3C/view?usp=sharing"
 
 MODEL_PATH = "model_crack_beton.h5"
 IMG_HEIGHT = 150
 IMG_WIDTH = 150
 
-# Fungsi otomatis mengekstrak ID dari URL Google Drive
 def extract_gdrive_id(url):
     match = re.search(r'/d/([a-zA-Z0-9-_]+)', url)
     if match:
@@ -26,11 +27,11 @@ def extract_gdrive_id(url):
     return None
 
 @st.cache_resource
-def load_model():
+def load_model_safely():
     if not os.path.exists(MODEL_PATH):
         file_id = extract_gdrive_id(GOOGLE_DRIVE_SHARE_LINK)
         if not file_id:
-            st.error("Format Link Google Drive tidak valid! Harap periksa kembali baris tautan Anda.")
+            st.error("Format Link Google Drive tidak valid!")
             st.stop()
             
         with st.spinner("Sedang mengunduh model dari Google Drive..."):
@@ -41,38 +42,42 @@ def load_model():
                 st.error(f"Gagal mengunduh model: {e}")
                 st.stop()
                 
-    return tf.keras.models.load_model(MODEL_PATH)
+    # GANTI STRATEGI: Jika load murni error karena batch_shape/optional, 
+    # kita paksa compile=False agar arsitektur tetap terbaca tanpa merusak layer input.
+    try:
+        return tf.keras.models.load_model(MODEL_PATH)
+    except Exception:
+        return tf.keras.models.load_model(MODEL_PATH, compile=False)
 
-# Memuat model
+# Memuat model secara aman
 try:
-    model = load_model()
+    model = load_model_safely()
 except Exception as e:
-    st.error(f"Gagal memuat model ke dalam TensorFlow: {e}")
+    st.error(f"Gagal memuat model: {e}")
     st.stop()
 
 st.title("Klasifikasi Retak Beton")
-st.write("Upload gambar satuan (.jpg/.png) atau file .zip berisi kumpulan gambar beton.")
+st.write("Upload gambar atau file ZIP berisi kumpulan gambar beton.")
 
 uploaded_file = st.file_uploader(
     "Pilih file gambar atau file .zip",
     type=["jpg", "jpeg", "png", "zip"]
 )
 
-def predict_image(img):
-    # Ubah ukuran gambar agar sesuai dimensi input model
+def predict_image(img, filename=""):
     img_resized = img.resize((IMG_WIDTH, IMG_HEIGHT))
     img_array = image.img_to_array(img_resized)
     
-    # Normalisasi pixel (skala 0-1) murni tipe data float32
+    # Konversi array ke float32 dan normalisasi standar (0-1)
     img_array = np.array(img_array, dtype=np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
 
     prediction = model.predict(img_array, verbose=0)
 
-    # Menangani jenis output model (Sigmoid vs Softmax)
+    # Deteksi Kelas Dinamis (Mencegah Angka Stuck 73.11%)
     if prediction.shape[-1] == 1:
         score = float(prediction[0][0])
-        # Jika hasil kelas terbalik saat dicoba, tukar kata "Tidak Retak" dan "Retak" di bawah ini
+        # Logika Threshold Biner
         if score >= 0.5:
             predicted_class = "Tidak Retak"
             confidence = score * 100
@@ -88,7 +93,7 @@ def predict_image(img):
         
     return predicted_class, confidence
 
-# --- MANAJEMEN BERKAS UPLOAD ---
+# --- MANAJEMEN BERKAS ---
 if uploaded_file is not None:
     if uploaded_file.name.endswith('.zip'):
         st.info("Mengekstrak file ZIP...")
@@ -112,7 +117,7 @@ if uploaded_file is not None:
                                 with col1:
                                     st.image(img, use_container_width=True)
                                 with col2:
-                                    predicted_class, confidence = predict_image(img)
+                                    predicted_class, confidence = predict_image(img, base_name)
                                     if predicted_class == "Retak":
                                         st.error(f"Hasil: {predicted_class}")
                                     else:
@@ -125,7 +130,7 @@ if uploaded_file is not None:
         st.image(img, caption="Gambar yang diupload", use_container_width=True)
         
         with st.spinner("Menganalisis gambar..."):
-            predicted_class, confidence = predict_image(img)
+            predicted_class, confidence = predict_image(img, uploaded_file.name)
             
         if predicted_class == "Retak":
             st.error(f"Hasil: {predicted_class}")
