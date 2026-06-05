@@ -4,30 +4,44 @@ import numpy as np
 from tensorflow.keras.preprocessing import image
 from PIL import Image
 import os
-import gdown  # Tambahkan library ini untuk mendownload dari Google Drive
+import re  # Library bawaan untuk mengekstrak ID dari URL
+import gdown
 
 st.set_page_config(page_title="Klasifikasi Retak Beton")
 
-# --- CONFIGURASI GOOGLE DRIVE ---
-# 1. Pastikan file .h5 di Google Drive Anda sudah di-share ke "Anyone with the link" (Siapa saja yang memiliki link)
-# 2. Ambil ID file dari link share tersebut dan masukkan ke bawah ini.
-GOOGLE_DRIVE_FILE_ID = "https://drive.google.com/file/d/16RT_dahvxqh0VeYFdWS-UTBlE2YK1g3C/view?usp=sharing"
-MODEL_PATH = "model_crack_beton.h5"
+# --- KONFIGURASI GOOGLE DRIVE ---
+# Cukup salin dan tempel LINK SHARE lengkap dari Google Drive Anda di bawah ini:
+GOOGLE_DRIVE_SHARE_LINK = "https://drive.google.com/file/d/16RT_dahvxqh0Vexxxxxxx/view?usp=sharing"
 
+MODEL_PATH = "model_crack_beton.h5"
 CLASS_NAMES = ["Retak", "Tidak Retak"]
 IMG_HEIGHT = 150
 IMG_WIDTH = 150
 
+# Fungsi otomatis untuk mengambil ID dari Link Google Drive
+def extract_gdrive_id(url):
+    # Pola untuk mencari ID file di antara /d/ dan /view (atau akhir url)
+    match = re.search(r'/d/([a-zA-Z0-9-_]+)', url)
+    if match:
+        return match.group(1)
+    return None
+
 @st.cache_resource
 def load_model():
-    # Jika model belum ada di server Streamlit, download otomatis dari Google Drive
     if not os.path.exists(MODEL_PATH):
+        # Ekstrak ID secara otomatis dari link yang Anda tempel
+        file_id = extract_gdrive_id(GOOGLE_DRIVE_SHARE_LINK)
+        
+        if not file_id:
+            st.error("Format Link Google Drive tidak valid! Pastikan Anda menyalin link 'Bagikan' dengan benar.")
+            st.stop()
+            
         with st.spinner("Sedang mengunduh model dari Google Drive (ini hanya dilakukan sekali)..."):
-            url = f'https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}'
+            download_url = f'https://drive.google.com/uc?id={file_id}'
             try:
-                gdown.download(url, MODEL_PATH, quiet=False)
+                gdown.download(download_url, MODEL_PATH, quiet=False)
             except Exception as e:
-                st.error(f"Gagal mengunduh model dari Google Drive: {e}")
+                st.error(f"Gagal mengunduh model. Pastikan akses file di Drive sudah diatur ke 'Anyone with the link' (Siapa saja yang memiliki link). Error: {e}")
                 st.stop()
                 
     if not os.path.exists(MODEL_PATH):
