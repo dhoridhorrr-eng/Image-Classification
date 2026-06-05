@@ -4,20 +4,36 @@ import numpy as np
 from tensorflow.keras.preprocessing import image
 from PIL import Image
 import os
+import gdown  # Tambahkan library ini untuk mendownload dari Google Drive
 
 st.set_page_config(page_title="Klasifikasi Retak Beton")
 
+# --- CONFIGURASI GOOGLE DRIVE ---
+# 1. Pastikan file .h5 di Google Drive Anda sudah di-share ke "Anyone with the link" (Siapa saja yang memiliki link)
+# 2. Ambil ID file dari link share tersebut dan masukkan ke bawah ini.
+GOOGLE_DRIVE_FILE_ID = "MASUKKAN_ID_FILE_DRIVE_ANDA_DISINI"
 MODEL_PATH = "model_crack_beton.h5"
-CLASS_NAMES = ["Retak", "Tidak Retak"]
 
+CLASS_NAMES = ["Retak", "Tidak Retak"]
 IMG_HEIGHT = 150
 IMG_WIDTH = 150
 
 @st.cache_resource
 def load_model():
+    # Jika model belum ada di server Streamlit, download otomatis dari Google Drive
     if not os.path.exists(MODEL_PATH):
-        st.error(f"Model tidak ditemukan: {MODEL_PATH}")
+        with st.spinner("Sedang mengunduh model dari Google Drive (ini hanya dilakukan sekali)..."):
+            url = f'https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}'
+            try:
+                gdown.download(url, MODEL_PATH, quiet=False)
+            except Exception as e:
+                st.error(f"Gagal mengunduh model dari Google Drive: {e}")
+                st.stop()
+                
+    if not os.path.exists(MODEL_PATH):
+        st.error(f"Model tidak ditemukan di path: {MODEL_PATH}")
         st.stop()
+        
     return tf.keras.models.load_model(MODEL_PATH)
 
 model = load_model()
