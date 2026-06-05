@@ -56,6 +56,11 @@ uploaded_file = st.file_uploader(
 def predict_image(img, file_name):
     img_resized = img.resize((IMG_WIDTH, IMG_HEIGHT))
     img_array = image.img_to_array(img_resized)
+    
+    # --- TAMBAHKAN BARIS INI UNTUK NORMALISASI ---
+    img_array = img_array / 255.0 
+    # ---------------------------------------------
+    
     img_array = np.expand_dims(img_array, axis=0)
 
     prediction = model.predict(img_array, verbose=0)
