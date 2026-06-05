@@ -11,7 +11,7 @@ st.set_page_config(page_title="Klasifikasi Retak Beton")
 # --- CONFIGURASI GOOGLE DRIVE ---
 # 1. Pastikan file .h5 di Google Drive Anda sudah di-share ke "Anyone with the link" (Siapa saja yang memiliki link)
 # 2. Ambil ID file dari link share tersebut dan masukkan ke bawah ini.
-GOOGLE_DRIVE_FILE_ID = "MASUKKAN_ID_FILE_DRIVE_ANDA_DISINI"
+GOOGLE_DRIVE_FILE_ID = "https://drive.google.com/file/d/16RT_dahvxqh0VeYFdWS-UTBlE2YK1g3C/view?usp=sharing"
 MODEL_PATH = "model_crack_beton.h5"
 
 CLASS_NAMES = ["Retak", "Tidak Retak"]
