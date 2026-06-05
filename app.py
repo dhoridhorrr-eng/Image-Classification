@@ -57,7 +57,7 @@ st.write("Upload gambar beton untuk mendeteksi retak atau tidak retak.")
 
 uploaded_file = st.file_uploader(
     "Pilih gambar",
-    type=["jpg", "jpeg", "png"]
+    type=["zip"]
 )
 
 if uploaded_file is not None:
